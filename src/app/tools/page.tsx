@@ -5,12 +5,13 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Code, Palette, Zap, Cpu, Sparkles, FilterX } from "lucide-react";
-import type { Tool } from "@/app/api/tools/route";
-import { Input } from "@/components/ui/input"; // 假设已通过 CLI 添加
+import type { Tool } from "@/types/tool"; // 从新的类型文件导入
+import { localToolsData } from "@/config/tools"; // 直接导入本地数据
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge"; // 假设已通过 CLI 添加
+import { Badge } from "@/components/ui/badge";
 
-// 卡片图标映射
+// 卡片图标映射 (保持不变)
 const categoryIcons: { [key: string]: React.ElementType } = {
   '开发工具': Code,
   '设计资源': Palette,
@@ -18,7 +19,7 @@ const categoryIcons: { [key: string]: React.ElementType } = {
   '人工智能': Sparkles,
 };
 
-// 工具卡片组件
+// 工具卡片组件 (保持不变)
 const ToolCard = ({ tool }: { tool: Tool }) => {
   const Icon = categoryIcons[tool.category] || Cpu;
   return (
@@ -54,56 +55,17 @@ const ToolCard = ({ tool }: { tool: Tool }) => {
   );
 };
 
-// 骨架屏组件
-const SkeletonLoader = () => (
-  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-    {[...Array(6)].map((_, i) => (
-      <div key={i} className="rounded-xl border border-border bg-card/50 p-6">
-        <div className="flex animate-pulse items-center gap-4">
-          <div className="h-10 w-10 rounded-lg bg-muted"></div>
-          <div className="h-6 w-2/3 rounded bg-muted"></div>
-        </div>
-        <div className="mt-4 h-4 w-full rounded bg-muted"></div>
-        <div className="mt-2 h-4 w-5/6 rounded bg-muted"></div>
-        <div className="mt-4 flex gap-2">
-          <div className="h-6 w-16 rounded-full bg-muted"></div>
-          <div className="h-6 w-20 rounded-full bg-muted"></div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
 // 主页面组件
 export default function ToolsPage() {
-  const [allTools, setAllTools] = React.useState<Tool[]>([]);
-  const [filteredTools, setFilteredTools] = React.useState<Tool[]>([]);
-  const [categories, setCategories] = React.useState<string[]>([]);
+  // ✅ 简化状态管理，直接从本地数据初始化
+  const allTools: Tool[] = localToolsData;
+  const categories: string[] = ["全部", ...new Set(allTools.map(tool => tool.category))];
+  
   const [activeCategory, setActiveCategory] = React.useState("全部");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(true);
-  const cardContainerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const fetchTools = async () => {
-      try {
-        const response = await fetch('/api/tools');
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data: Tool[] = await response.json();
-        setAllTools(data);
-        setFilteredTools(data);
-        const uniqueCategories = ["全部", ...new Set(data.map(tool => tool.category))];
-        setCategories(uniqueCategories);
-      } catch (error) {
-        console.error("Failed to fetch tools:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTools();
-  }, []);
-
-  React.useEffect(() => {
+  
+  // ✅ 使用 useMemo 来计算过滤后的工具列表，性能更佳
+  const filteredTools = React.useMemo(() => {
     let result = allTools;
     if (activeCategory !== "全部") {
       result = result.filter(tool => tool.category === activeCategory);
@@ -117,9 +79,12 @@ export default function ToolsPage() {
           tool.tags.some(tag => tag.toLowerCase().includes(lowerCaseQuery))
       );
     }
-    setFilteredTools(result);
+    return result;
   }, [searchQuery, activeCategory, allTools]);
 
+  const cardContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // 辉光效果的 useEffect 保持不变
   React.useEffect(() => {
     const container = cardContainerRef.current;
     if (!container) return;
@@ -133,7 +98,6 @@ export default function ToolsPage() {
     container.addEventListener("mousemove", handleMouseMove);
     return () => container.removeEventListener("mousemove", handleMouseMove);
   }, [cardContainerRef]);
-
 
   return (
     <>
@@ -157,7 +121,7 @@ export default function ToolsPage() {
           </p>
         </div>
 
-        <div className="sticky top-20 z-20 my-12 rounded-xl border border-border/50 bg-background/80 p-4 backdrop-blur-md">
+        <div className="sticky top-20 z-20 my-12 rounded-xl border border-border/50 bg-background/40 p-4 backdrop-blur-md">
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -166,7 +130,6 @@ export default function ToolsPage() {
                 placeholder="搜索工具、描述或标签..."
                 className="w-full pl-10"
                 value={searchQuery}
-                // ✅✅✅ FIX: 为事件参数 'e' 添加明确的类型 ✅✅✅
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               />
             </div>
@@ -191,30 +154,27 @@ export default function ToolsPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <SkeletonLoader />
-        ) : (
-          <motion.div
-            ref={cardContainerRef}
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-          >
-            <AnimatePresence>
-              {filteredTools.length > 0 ? (
-                filteredTools.map(tool => <ToolCard key={tool.id} tool={tool} />)
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="col-span-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center"
-                >
-                    <FilterX className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-xl font-semibold">未找到匹配的工具</h3>
-                    <p className="mt-2 text-muted-foreground">请尝试调整搜索词或更换筛选分类。</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
+        {/* ✅ 移除了 isLoading 判断和骨架屏 */}
+        <motion.div
+          ref={cardContainerRef}
+          className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          <AnimatePresence>
+            {filteredTools.length > 0 ? (
+              filteredTools.map(tool => <ToolCard key={tool.id} tool={tool} />)
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="col-span-full flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12 text-center"
+              >
+                  <FilterX className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-xl font-semibold">未找到匹配的工具</h3>
+                  <p className="mt-2 text-muted-foreground">请尝试调整搜索词或更换筛选分类。</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </motion.div>
     </>
   );
