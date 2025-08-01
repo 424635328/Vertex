@@ -5,7 +5,7 @@ import { Github, Twitter, Linkedin } from 'lucide-react';
 export const siteConfig = {
   name: "Vertex",
   description: "一个高度可定制的、配置驱动的个人数字世界控制中心。",
-  author: "你的名字", // 替换成你的名字
+  author: "Tony.", // 替换成你的名字
   url: "https://vertex-personal-hub.vercel.app", // 替换成你的线上访问链接
   links: {
     github: "https://github.com/424635328/Vertex", // 替换成你的项目 GitHub 链接
